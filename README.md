@@ -10,7 +10,7 @@ Cofre de senhas e acessos em um aplicativo desktop Windows (Python/Tkinter), com
 - A senha mestra e a chave de descriptografia **nunca são gravadas no banco**.
 - A primeira execução cria o cofre; as seguintes exigem a senha mestra correta.
 - **Não existe recuperação da senha mestra**. Faça backups seguros do MySQL.
-- Não expor MySQL na internet. Use um túnel SSH e acesse pelo endereço local `127.0.0.1`.
+- Prefira não expor MySQL na internet: utilize um túnel SSH e acesse por `127.0.0.1`. A conexão direta com host externo é permitida somente com TLS, verificação de certificado e identidade do servidor.
 - Este é um MVP, não um gerenciador auditado. Não migre credenciais críticas até auditar código, dependências e procedimentos de backup/restauração.
 
 ## Instalação (Windows)
@@ -43,6 +43,21 @@ ssh -N -L 127.0.0.1:13306:127.0.0.1:3306 usuario@seu-servidor
 ```
 
 No arquivo `.env` configure `DB_HOST=127.0.0.1`, `DB_PORT=13306`, `DB_USER`, `DB_PASSWORD` e `DB_NAME`. Nunca versionar `.env`.
+
+### MySQL remoto (alternativa com TLS)
+
+Use somente se seu provedor confirmar o host MySQL, porta, acesso remoto autorizado e fornecer o certificado de CA correto. Não use URLs de painéis HTTP/HTTPS como host MySQL. Exemplo:
+
+```dotenv
+DB_HOST=mysql.seu-provedor.example
+DB_PORT=3306
+DB_USER=passkey
+DB_PASSWORD=SUA_SENHA
+DB_NAME=passkey
+DB_SSL_CA=C:/certificados/mysql-ca.pem
+```
+
+O certificado em `DB_SSL_CA` deve ser confiável e corresponder à cadeia de certificados apresentada pelo servidor. O PassKey exige `ssl_verify_cert=True` e `ssl_verify_identity=True` na conexão direta. Não desabilite essa validação nem exponha a porta MySQL publicamente sem restrições de firewall. O caminho `DB_SSL_CA` é um exemplo, não um arquivo fornecido pelo projeto.
 
 Execute:
 
