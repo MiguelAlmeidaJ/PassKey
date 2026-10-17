@@ -7,13 +7,27 @@ from dotenv import load_dotenv
 def config():
     root = Path(sys.executable).resolve().parent if getattr(sys, "frozen", False) else Path(__file__).resolve().parent
     load_dotenv(root / ".env")
-    host = os.getenv("DB_HOST", "127.0.0.1")
-    if host not in ("127.0.0.1", "localhost", "::1"):
-        raise ValueError("Conecte via túnel SSH: DB_HOST=127.0.0.1")
+    host = os.getenv("DB_HOST", "127.0.0.1").strip()
+    if "://" in host or "/" in host or ":" in host and host != "::1":
+        raise ValueError("DB_HOST deve conter somente o hostname, sem https://, caminho ou porta. Configure DB_PORT separadamente.")
     password = os.getenv("DB_PASSWORD", "")
     if not password or password == "SUBSTITUA":
         raise ValueError("Configure DB_PASSWORD no arquivo .env")
-    return dict(host=host, port=int(os.getenv("DB_PORT", "13306")), user=os.getenv("DB_USER", "passkey"), password=password, database=os.getenv("DB_NAME", "passkey"), connection_timeout=10)
+    local = host in ("127.0.0.1", "localhost", "::1")
+    port = int(os.getenv("DB_PORT", "13306" if local else "3306"))
+    options = dict(host=host, port=port, user=os.getenv("DB_USER", "passkey"),
+                   password=password, database=os.getenv("DB_NAME", "passkey"),
+                   connection_timeout=10)
+    if not local:
+        ca = os.getenv("DB_SSL_CA", "").strip()
+        if not ca:
+            raise ValueError("MySQL remoto exige TLS verificado. Configure DB_SSL_CA com o caminho do certificado CA fornecido pelo provedor, ou use túnel SSH local.")
+        cert = Path(ca).expanduser()
+        if not cert.is_file():
+            raise ValueError(f"Certificado CA não encontrado: {cert}")
+        options.update(ssl_ca=str(cert), ssl_verify_cert=True, ssl_verify_identity=True,
+                       ssl_disabled=False)
+    return options
 
 class Storage:
     def __init__(self):
